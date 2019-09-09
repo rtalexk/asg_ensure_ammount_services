@@ -12,6 +12,12 @@ For this tutorial we'll use almost the same configuration that the one explained
 
 We'll use also an Application Load Balancer inside a Security Group that gets traffic from outside and routes to the instances inside the Auto Scalig Group. Each instance also will have its Auto Scaling Group that accepts traffic from the Load Balancer and sends to the outside.
 
+We'll configure the Auto Scaling Group to keep running always two instances and it will do its best to provision them in different availability zones.
+
+Aunto Scaling Group uses a Launch Template which defines the configuration of the newly provisioned instances.
+
+Once an unhealthy instance is detected by the ELB's Target Group it will notify to the ASG which will provision a new one to replace it. Also the ASG takes care of registering the new instance with the ELB once it is healty so the ELB can route traffic to it.
+
 ## Prerequisites
 
 This tutorial asumes you have an AWS account and you've configured AWS credentials for CLI, if you haven't [please do so](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html#post-install-configure).
