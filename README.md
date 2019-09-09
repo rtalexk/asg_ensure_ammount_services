@@ -430,5 +430,114 @@ You've finish! Now it's time for testing. Get the URL from the response when you
 
 Now copy and paste this URL (without the quotation marks `"`) in your favorite browser. Then start refreshing multiple times and you'll see that the application is served from the two different instances.
 
+Also verify that the auto scaling group ensures that the defined ammount of instances keep running by terminating one.
+
+First verify the health status of the registered instances inside the ASG:
+
+```bash
+(bash) $ aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:us-east-1:436887685341:targetgroup/asg-instances/2c7ee38c3dd69267
+```
+
+Output:
+
+```json
+{
+  "TargetHealthDescriptions": [
+    {
+      "HealthCheckPort": "80",
+      "Target": {
+        "Id": "i-0c9d0dc90368d2fe1",
+        "Port": 80
+      },
+      "TargetHealth": {
+        "State": "healthy"
+      }
+    },
+    {
+      "HealthCheckPort": "80",
+      "Target": {
+        "Id": "i-004f291c4441da411",
+        "Port": 80
+      },
+      "TargetHealth": {
+        "State": "healthy"
+      }
+    }
+  ]
+}
+```
+
+As you can see, there're two instances with the state of `healthy`, look at the `Target.Id`s, once we stop an instance another one should be provisioned automatically replacing the unhealthy one, it will cause a new `Id` will be shown up.
+
+Let's terminate an instance:
+
+```bash
+(bash) $ aws ec2 terminate-instances --instance-id i-0c9d0dc90368d2fe1
+```
+
+Now if we check again the instance status:
+
+```bash
+(bash) $ aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:us-east-1:436887685341:targetgroup/asg-instances/2c7ee38c3dd69267
+```
+
+Output:
+
+```json
+{
+  "TargetHealthDescriptions": [
+    {
+      "HealthCheckPort": "80",
+      "Target": {
+        "Id": "i-004f291c4441da411",
+        "Port": 80
+      },
+      "TargetHealth": {
+        "State": "healthy"
+      }
+    }
+  ]
+}
+```
+
+There's only one instance in the target group. Once the Target Group detects that there's an instance with an unhealty status will notify to the Auto Scaling which will provision another instance using the Launch Template to configure it. It should take less than 5 minutes as configured in the target group (which defaults to 30 seconds for instance target types).
+
+```bash
+(bash) $ aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:us-east-1:436887685341:targetgroup/asg-instances/2c7ee38c3dd69267
+```
+
+Output:
+
+```json
+{
+  "TargetHealthDescriptions": [
+    {
+      "HealthCheckPort": "80",
+      "Target": {
+        "Id": "i-00a7bcf0e4c65ff64",
+        "Port": 80
+      },
+      "TargetHealth": {
+        "State": "initial",
+        "Reason": "Elb.RegistrationInProgress",
+        "Description": "Target registration is in progress"
+      }
+    },
+    {
+      "HealthCheckPort": "80",
+      "Target": {
+        "Id": "i-004f291c4441da411",
+        "Port": 80
+      },
+      "TargetHealth": {
+        "State": "healthy"
+      }
+    }
+  ]
+}
+```
+
+As you can see the ASG is now starting a new instance and in a matter of seconds (or minutes) it will become healthy.
+
 ## Remove provisioned resources
 
