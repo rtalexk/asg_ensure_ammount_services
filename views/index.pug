@@ -1,0 +1,17 @@
+extends layout
+
+block content
+  .content
+    .card
+      .certified
+        img(src='images/aws-certified-logo.jpg' alt='AWS Certified')
+        a(
+          href='https://www.certmetrics.com/amazon/public/badge.aspx?i=2&t=c&d=2019-08-06&ci=AWS00897496'
+          target='__blank'
+        ) See credential
+
+      .instance
+        p.title Instance ID
+        p.detail #{instance_id}
+        p.title Availability Zone
+        p.detail #{az}
