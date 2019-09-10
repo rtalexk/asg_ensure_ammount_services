@@ -1,6 +1,6 @@
-# Tutorial: Implement Elastic Load Balancer in AWS
+# Tutorial: Implement Auto Scaling Group in AWS
 
-This tutorial will teach you how to implement an Application Load Balancer using AWS ELB to route traffic among instances in different avaliability zones.
+This tutorial will teach you how to implement an Auto Scaling Group to ensure a certain amount of instances keep running even after a sudden termination.
 
 ## Architecture
 
