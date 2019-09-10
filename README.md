@@ -635,7 +635,7 @@ Output:
 (bash) $ aws ec2 delete-launch-template --launch-template-name asg-template
 ```
 
-### Remove Security Groups
+### Remove Security Groups
 
 If you try to remove any of the security groups you'll get an error because each SG is being used by each other. Let's try:
 
@@ -645,7 +645,7 @@ If you try to remove any of the security groups you'll get an error because each
 An error occurred (DependencyViolation) when calling the DeleteSecurityGroup operation: resource sg-0711cbbfafffcfc90 has a dependent object
 ```
 
-#### Revoke reference
+#### Revoke reference
 
 Why can remove any of the two references, let's verify the egress rules for the asg-elb-sg group:
 
