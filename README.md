@@ -551,3 +551,143 @@ As you can see the ASG is now starting a new instance and in a matter of seconds
 
 ## Remove provisioned resources
 
+For this tutorial we provisioned the following resources:
+
+* Elastic Load Balancer
+   * Target Group
+   * Listener
+* EC2 Instances
+* Auto Scaling Group
+   * Launch Template
+* Security Groups
+
+### Delete Elastic Load Balancer
+
+```bash
+(bash) $ aws elbv2 delete-load-balancer --load-balancer-arn arn:aws:elasticloadbalancing:us-east-1:436887685341:loadbalancer/app/asg-balancer/8459ebfe9e1b337c
+```
+
+### Delete Target Group
+
+```bash
+(bash) $ aws elbv2 delete-target-group --target-group-arn arn:aws:elasticloadbalancing:us-east-1:436887685341:targetgroup/asg-instances/2c7ee38c3dd69267
+```
+
+### Terminate Instances
+
+Query for instances (in my case I only have two instances running, both used for this tutorial):
+
+```bash
+(bash) $ aws ec2 describe-instances | jq '.Reservations | .[] | .Instances | .[] | .InstanceId'
+----------------
+"i-00a7bcf0e4c65ff64"
+"i-004f291c4441da411"
+```
+
+```bash
+(bash) $ aws ec2 terminate-instances --instance-ids "i-00a7bcf0e4c65ff64" "i-004f291c4441da411"
+```
+
+Output:
+
+```json
+{
+  "TerminatingInstances": [
+    {
+      "InstanceId": "i-00a7bcf0e4c65ff64",
+      "CurrentState": {
+        "Code": 32,
+        "Name": "shutting-down"
+      },
+      "PreviousState": {
+        "Code": 16,
+        "Name": "running"
+      }
+    },
+    {
+      "InstanceId": "i-004f291c4441da411",
+      "CurrentState": {
+        "Code": 32,
+        "Name": "shutting-down"
+      },
+      "PreviousState": {
+        "Code": 16,
+        "Name": "running"
+      }
+    }
+  ]
+}
+```
+
+### Delete Auto Scaling Group
+
+```bash
+(bash) $ aws autoscaling delete-auto-scaling-group --auto-scaling-group-name asg-autoscaling
+```
+
+### Delete Launch Template
+
+```bash
+(bash) $ aws ec2 describe-launch-templates
+```
+
+```bash
+(bash) $ aws ec2 delete-launch-template --launch-template-name asg-template
+```
+
+### Remove Security Groups
+
+If you try to remove any of the security groups you'll get an error because each SG is being used by each other. Let's try:
+
+```bash
+(bash) $ aws ec2 delete-security-group --group-name asg-elb-sg
+----------------
+An error occurred (DependencyViolation) when calling the DeleteSecurityGroup operation: resource sg-0711cbbfafffcfc90 has a dependent object
+```
+
+#### Revoke reference
+
+Why can remove any of the two references, let's verify the egress rules for the asg-elb-sg group:
+
+```bash
+(bash) $ aws ec2 describe-security-groups --group-name asg-elb-sg | jq '.SecurityGroups | .[0] | .IpPermissionsEgress'
+```
+
+Output:
+
+```json
+[
+  {
+    "PrefixListIds": [],
+    "FromPort": 80,
+    "IpRanges": [],
+    "ToPort": 80,
+    "IpProtocol": "tcp",
+    "UserIdGroupPairs": [
+      {
+        "UserId": "436887685341",
+        "GroupId": "sg-0e2ef5fc627df4419"
+      }
+    ],
+    "Ipv6Ranges": []
+  }
+]
+```
+
+Now let's revoke that rule:
+
+```bash
+(bash) $ aws ec2 revoke-security-group-egress --group-id sg-0711cbbfafffcfc90 --protocol tcp --port 80 --source-group sg-0e2ef5fc627df4419
+```
+
+What we did? We removed the reference from `asg-elb-sg` to `asg-elb-ec2-sg`. `asg-elb-ec2-sg` still has a reference to `asg-elb-sg`, but `asg-elb-ec2-sg` is not being referenced from anywhere, so it's safe to remove it:
+
+```bash
+(bash) $ aws ec2 delete-security-group --group-name asg-elb-ec2-sg
+```
+
+With that we removed the reference from `asg-elb-ec2-sg` to `asg-elb-sg`, and we can remove it as well:
+
+```bash
+(bash) $ aws ec2 delete-security-group --group-name asg-elb-sg
+```
