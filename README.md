@@ -299,6 +299,8 @@ Output:
 }
 ```
 
+This Launch Template also includes User Data which will be executed once the instance is in running state. This user data is available at [`build/user_data.sh`](/build/user_data.sh) and installs Node.js and configured the project to be running in port 3000 and uses Nginx as reverse proxy to proxy port 80 to 3000.
+
 ## Elastic Load Balancer
 
 Now it's time to create the Load Balancer, in this case we'll use the same configuration used in [Application Load Balancer's tutorial](https://github.com/rtalexk/elb_application).
@@ -307,7 +309,7 @@ Now it's time to create the Load Balancer, in this case we'll use the same confi
 (bash) $ aws elbv2 create-load-balancer --name asg-balancer --subnets "subnet-4bc9862c" "subnet-0d024951" --security-groups sg-0711cbbfafffcfc90 --type application
 ```
 
-In this command we specify the subnet IDs on which the EC2 will be created. Also notice that I'm specifying to use an `application` load balancer as `type`. It's not required to specify the type for an ALB due to this is the default value.
+In this command we specify the subnet IDs on which the Load Balancer can route to. Also notice that I'm specifying to use an `application` load balancer as `type`. It's not required to specify the type for an ALB due to this is the default value.
 
 The outpot of the previous command is the information of the newly created ELB in `provisioning` state.
 
@@ -347,7 +349,7 @@ The outpot of the previous command is the information of the newly created ELB i
 
 ### Target Group
 
-Your load balancer routes requests to the targets in this target group using the protocol and port that you specify, and performs health checks on the targets using these health check settings. Note that each target group can be associated with only one load balancer.
+Your load balancer routes requests to the targets in this target group using the protocol and port that you specify, and performs health checks on the targets using these health check settings.
 
 ```bash
 (bash) $ aws elbv2 create-target-group --name asg-instances --target-type instance --vpc-id vpc-d64fd4ac \
@@ -415,7 +417,7 @@ Output:
 
 ## Auto Scaling Group
 
-With all the resources created and configured now we can create the Auto Scaling Group to link the Launch Template with the Load Balancer. So, anytime an instance is terminated, the ASG will launch a new instance using the tamplate as reference and will register that new instance with the Load Balancer.
+With all the resources created and configured now we can create the Auto Scaling Group to link the Launch Template with the Load Balancer. So, anytime an instance is unhealthy, the ASG will launch a new instance using the tamplate as reference and will register that new instance with the Load Balancer.
 
 ```bash
 (bash) $ aws autoscaling create-auto-scaling-group --auto-scaling-group-name asg-autoscaling \
@@ -424,9 +426,11 @@ With all the resources created and configured now we can create the Auto Scaling
     --max-size 2 --min-size 2 --desired-capacity 2 --vpc-zone-identifier "subnet-4bc9862c,subnet-0d024951"
 ```
 
+With this Auto Scaling Group we're defining a `min-size`, `max-size` and `desired-capacity` of 2, which will ensure that always two instances must be running. And we're defining the Subnets IDs where these instances must be launched on (`--vpc-zone-identifier`).
+
 ## Testing
 
-You've finish! Now it's time for testing. Get the URL from the response when you created the Load Balancer, or you cant query using the CLI:
+You've finish! Now it's time for testing. Get the URL from the response when you created the Load Balancer, or you can query using the CLI:
 
 ```bash
 (bash) $ aws elbv2 describe-load-balancers --names az-balancer | jq '.LoadBalancers | .[0] | .DNSName'
